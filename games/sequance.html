@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Brain Arena | Sequence Memory</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            burgundy: '#5B1423',
+            coral: '#FF5353',
+            sunny: '#FFC837',
+            mint: '#83D3A3',
+            softwhite: '#FDFCFA',
+          },
+          fontFamily: {
+            nunito: ['Nunito', 'sans-serif'],
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    body { font-family: 'Nunito', sans-serif; }
+    .square-btn { aspect-ratio: 1; transition: background-color 0.2s; cursor: pointer; }
+  </style>
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+    import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+    import { getDatabase, ref, set, get } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyD-FpcaNwRLdZSWh5-CYzQkh6tu_ouWk7A",
+      authDomain: "brainarena-cfe76.firebaseapp.com",
+      databaseURL: "https://brainarena-cfe76-default-rtdb.firebaseio.com",
+      projectId: "brainarena-cfe76",
+      storageBucket: "brainarena-cfe76.firebasestorage.app",
+      messagingSenderId: "23262900711",
+      appId: "1:23262900711:web:fd6be7115114c0cec8cd42"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getDatabase(app);
+
+    let currentUser = null;
+    onAuthStateChanged(auth, (user) => {
+      if (user) {
+        currentUser = user;
+        loadScores();
+      }
+    });
+
+    function loadScores() {
+      if (!currentUser) return;
+      get(ref(db, 'users/' + currentUser.uid + '/scores/sequence')).then((snapshot) => {
+        if (snapshot.exists()) {
+          window.scores = snapshot.val() || [];
+          window.updateScoreDisplay();
+        }
+      });
+    }
+
+    window.saveScores = () => {
+      if (!currentUser) return;
+      set(ref(db, 'users/' + currentUser.uid + '/scores/sequence'), window.scores);
+    }
+  </script>
+</head>
+<body class="bg-softwhite text-gray-800 min-h-screen flex flex-col">
+
+  <header class="bg-white border-b border-gray-100 py-4 px-6 md:px-12 flex items-center justify-between">
+    <div class="flex items-center gap-2">
+      <div class="w-9 h-9 bg-sunny rounded-lg flex items-center justify-center">
+        <i data-lucide="brain" class="text-white w-5 h-5"></i>
+      </div>
+      <a href="../index.html" class="text-xl font-bold text-burgundy">Brain Arena</a>
+    </div>
+    <nav class="hidden lg:flex items-center gap-8 text-gray-500 font-bold text-[11px] uppercase tracking-wider">
+      <a href="../index.html" class="hover:text-burgundy">Home</a>
+      <a href="../leaderboard.html" class="hover:text-burgundy">Leaderboards</a>
+      <a href="../about.html" class="hover:text-burgundy">About</a>
+    </nav>
+  </header>
+
+  <main class="flex-1 max-w-4xl mx-auto w-full px-6 py-12">
+    <div id="gameBox" class="bg-burgundy rounded-2xl min-h-[500px] flex flex-col items-center justify-center text-center p-8 text-white relative">
+      <div id="startScreen" class="space-y-6">
+        <div class="w-16 h-16 bg-white/10 rounded-2xl flex items-center justify-center mx-auto">
+          <i data-lucide="grid-3x3" class="w-8 h-8"></i>
+        </div>
+        <h1 class="text-4xl font-bold">Sequence Memory</h1>
+        <p class="text-lg opacity-80 max-w-md mx-auto">Memorize the pattern of squares as they light up, then repeat them in order.</p>
+        <button id="startBtn" class="bg-white text-burgundy px-8 py-3 rounded-full font-bold text-lg">Click to Start</button>
+      </div>
+
+      <div id="gamePlay" class="hidden w-full max-w-sm flex flex-col items-center">
+        <div class="flex justify-between w-full mb-6 text-left">
+          <div>
+            <p class="text-[10px] font-bold uppercase tracking-widest opacity-60">Level</p>
+            <p id="levelDisplay" class="text-2xl font-bold">1</p>
+          </div>
+          <div class="text-right">
+            <p id="statusText" class="text-lg font-bold">Watch!</p>
+          </div>
+        </div>
+        <div id="gameGrid" class="grid grid-cols-3 gap-3 w-full bg-white/5 p-4 rounded-2xl">
+          <div class="square-btn rounded-xl bg-white/10" data-index="0"></div>
+          <div class="square-btn rounded-xl bg-white/10" data-index="1"></div>
+          <div class="square-btn rounded-xl bg-white/10" data-index="2"></div>
+          <div class="square-btn rounded-xl bg-white/10" data-index="3"></div>
+          <div class="square-btn rounded-xl bg-white/10" data-index="4"></div>
+          <div class="square-btn rounded-xl bg-white/10" data-index="5"></div>
+          <div class="square-btn rounded-xl bg-white/10" data-index="6"></div>
+          <div class="square-btn rounded-xl bg-white/10" data-index="7"></div>
+          <div class="square-btn rounded-xl bg-white/10" data-index="8"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mt-8">
+      <div class="bg-white border border-gray-100 p-6 rounded-2xl text-center">
+        <p class="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-1">Last Level</p>
+        <p id="lastScore" class="text-2xl font-bold text-burgundy">Level 0</p>
+      </div>
+      <div class="bg-white border border-gray-100 p-6 rounded-2xl text-center">
+        <p class="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-1">Avg Level</p>
+        <p id="avgScore" class="text-2xl font-bold text-burgundy">Level 0</p>
+      </div>
+      <div class="bg-white border border-gray-100 p-6 rounded-2xl text-center">
+        <p class="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-1">Best Level</p>
+        <p id="bestScore" class="text-2xl font-bold text-burgundy">Level 0</p>
+      </div>
+    </div>
+  </main>
+
+  <footer class="bg-burgundy text-white py-12 px-6 mt-12 text-center opacity-40 text-[9px] font-bold uppercase tracking-widest">
+    <p>© 2024 Brain Arena. An Open Source Project.</p>
+  </footer>
+
+  <script>
+    lucide.createIcons();
+    const startScreen = document.getElementById("startScreen");
+    const gamePlay = document.getElementById("gamePlay");
+    const gameGrid = document.getElementById("gameGrid");
+    const startBtn = document.getElementById("startBtn");
+    const levelDisplay = document.getElementById("levelDisplay");
+    const statusText = document.getElementById("statusText");
+    const lastScoreEl = document.getElementById("lastScore");
+    const avgScoreEl = document.getElementById("avgScore");
+    const bestScoreEl = document.getElementById("bestScore");
+
+    let sequence = [];
+    let playerSequence = [];
+    let currentLevel = 1;
+    let isPlayingSequence = false;
+    window.scores = [];
+
+    window.updateScoreDisplay = () => {
+      if (window.scores.length > 0) {
+        lastScoreEl.textContent = `Level ${window.scores[window.scores.length - 1]}`;
+        avgScoreEl.textContent = `Level ${Math.round(window.scores.reduce((a, b) => a + b) / window.scores.length)}`;
+        bestScoreEl.textContent = `Level ${Math.max(...window.scores)}`;
+      }
+    };
+
+    function playSequence() {
+      isPlayingSequence = true;
+      statusText.textContent = "Watch!";
+      let i = 0;
+      const interval = setInterval(() => {
+        const idx = sequence[i];
+        const btn = gameGrid.children[idx];
+        btn.classList.remove("bg-white/10");
+        btn.classList.add("bg-white");
+
+        setTimeout(() => {
+          btn.classList.remove("bg-white");
+          btn.classList.add("bg-white/10");
+        }, 300);
+
+        i++;
+        if (i >= sequence.length) {
+          clearInterval(interval);
+          setTimeout(() => {
+            isPlayingSequence = false;
+            statusText.textContent = "Your turn!";
+          }, 600);
+        }
+      }, 700);
+    }
+
+    function nextLevel() {
+      currentLevel++;
+      levelDisplay.textContent = currentLevel;
+      sequence.push(Math.floor(Math.random() * 9));
+      playerSequence = [];
+      setTimeout(playSequence, 1000);
+    }
+
+    function handleBtnClick(idx) {
+      if (isPlayingSequence) return;
+      const btn = gameGrid.children[idx];
+
+      btn.classList.remove("bg-white/10");
+      btn.classList.add("bg-white");
+      setTimeout(() => {
+        btn.classList.remove("bg-white");
+        btn.classList.add("bg-white/10");
+      }, 200);
+
+      playerSequence.push(idx);
+      const currentIdx = playerSequence.length - 1;
+
+      if (playerSequence[currentIdx] !== sequence[currentIdx]) {
+        endGame();
+      } else if (playerSequence.length === sequence.length) {
+        setTimeout(nextLevel, 500);
+      }
+    }
+
+    function startGame() {
+      sequence = [Math.floor(Math.random() * 9)];
+      playerSequence = [];
+      currentLevel = 1;
+      levelDisplay.textContent = currentLevel;
+      startScreen.classList.add("hidden");
+      gamePlay.classList.remove("hidden");
+      // Add a 500ms delay before starting the sequence to allow screen transition
+      setTimeout(playSequence, 500);
+    }
+
+    function endGame() {
+      window.scores.push(currentLevel);
+      window.saveScores();
+      window.updateScoreDisplay();
+      startScreen.classList.remove("hidden");
+      gamePlay.classList.add("hidden");
+      document.querySelector("#startScreen h1").textContent = "Game Over!";
+      document.querySelector("#startScreen p").textContent = `Level reached: ${currentLevel}`;
+      startBtn.textContent = "Try Again";
+    }
+
+    startBtn.addEventListener("click", startGame);
+    Array.from(gameGrid.children).forEach((btn, i) => {
+      btn.addEventListener("click", () => handleBtnClick(i));
+    });
+  </script>
+</body>
+</html>

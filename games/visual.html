@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Brain Arena | Visual Memory</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            burgundy: '#5B1423',
+            coral: '#FF5353',
+            sunny: '#FFC837',
+            mint: '#83D3A3',
+            softwhite: '#FDFCFA',
+          },
+          fontFamily: {
+            nunito: ['Nunito', 'sans-serif'],
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    body { font-family: 'Nunito', sans-serif; }
+    .visual-tile { aspect-ratio: 1; cursor: pointer; transition: all 0.1s; }
+  </style>
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+    import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+    import { getDatabase, ref, set, get } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyD-FpcaNwRLdZSWh5-CYzQkh6tu_ouWk7A",
+      authDomain: "brainarena-cfe76.firebaseapp.com",
+      databaseURL: "https://brainarena-cfe76-default-rtdb.firebaseio.com",
+      projectId: "brainarena-cfe76",
+      storageBucket: "brainarena-cfe76.firebasestorage.app",
+      messagingSenderId: "23262900711",
+      appId: "1:23262900711:web:fd6be7115114c0cec8cd42"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getDatabase(app);
+
+    let currentUser = null;
+    onAuthStateChanged(auth, (user) => {
+      if (user) {
+        currentUser = user;
+        loadScores();
+      }
+    });
+
+    function loadScores() {
+      if (!currentUser) return;
+      get(ref(db, 'users/' + currentUser.uid + '/scores/visual')).then((snapshot) => {
+        if (snapshot.exists()) {
+          window.scores = snapshot.val() || [];
+          window.updateScoreDisplay();
+        }
+      });
+    }
+
+    window.saveScores = () => {
+      if (!currentUser) return;
+      set(ref(db, 'users/' + currentUser.uid + '/scores/visual'), window.scores);
+    }
+  </script>
+</head>
+<body class="bg-softwhite text-gray-800 min-h-screen flex flex-col">
+
+  <header class="bg-white border-b border-gray-100 py-4 px-6 md:px-12 flex items-center justify-between">
+    <div class="flex items-center gap-2">
+      <div class="w-9 h-9 bg-sunny rounded-lg flex items-center justify-center">
+        <i data-lucide="brain" class="text-white w-5 h-5"></i>
+      </div>
+      <a href="../index.html" class="text-xl font-bold text-burgundy">Brain Arena</a>
+    </div>
+    <nav class="hidden lg:flex items-center gap-8 text-gray-500 font-bold text-[11px] uppercase tracking-wider">
+      <a href="../index.html" class="hover:text-burgundy">Home</a>
+      <a href="../leaderboard.html" class="hover:text-burgundy">Leaderboards</a>
+      <a href="../about.html" class="hover:text-burgundy">About</a>
+    </nav>
+  </header>
+
+  <main class="flex-1 max-w-4xl mx-auto w-full px-6 py-12">
+    <div id="gameBox" class="bg-burgundy rounded-2xl min-h-[500px] flex flex-col items-center justify-center text-center p-8 text-white relative">
+      <div id="startScreen" class="space-y-6">
+        <div class="w-16 h-16 bg-white/10 rounded-2xl flex items-center justify-center mx-auto">
+          <i data-lucide="eye" class="w-8 h-8"></i>
+        </div>
+        <h1 class="text-4xl font-bold">Visual Memory</h1>
+        <p class="text-lg opacity-80 max-w-md mx-auto">Memorize the highlighted squares, then click them after they disappear.</p>
+        <button id="startBtn" class="bg-white text-burgundy px-8 py-3 rounded-full font-bold text-lg">Click to Start</button>
+      </div>
+
+      <div id="gamePlay" class="hidden w-full max-w-sm flex flex-col items-center">
+        <div class="flex justify-between w-full mb-6">
+          <div class="text-left">
+            <p class="text-[10px] font-bold uppercase tracking-widest opacity-60">Level</p>
+            <p id="levelDisplay" class="text-2xl font-bold">1</p>
+          </div>
+          <div class="text-right">
+            <p class="text-[10px] font-bold uppercase tracking-widest opacity-60">Lives</p>
+            <p id="livesDisplay" class="text-2xl font-bold">3</p>
+          </div>
+        </div>
+        <div id="gameGrid" class="grid gap-2 w-full bg-white/5 p-4 rounded-2xl"></div>
+        <p id="statusText" class="mt-4 text-sm opacity-80">Memorizing...</p>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mt-8">
+      <div class="bg-white border border-gray-100 p-6 rounded-2xl text-center">
+        <p class="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-1">Last Level</p>
+        <p id="lastScore" class="text-2xl font-bold text-burgundy">Level 0</p>
+      </div>
+      <div class="bg-white border border-gray-100 p-6 rounded-2xl text-center">
+        <p class="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-1">Avg Level</p>
+        <p id="avgScore" class="text-2xl font-bold text-burgundy">Level 0</p>
+      </div>
+      <div class="bg-white border border-gray-100 p-6 rounded-2xl text-center">
+        <p class="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-1">Best Level</p>
+        <p id="bestScore" class="text-2xl font-bold text-burgundy">Level 0</p>
+      </div>
+    </div>
+  </main>
+
+  <footer class="bg-burgundy text-white py-12 px-6 mt-12 text-center opacity-40 text-[9px] font-bold uppercase tracking-widest">
+    <p>© 2024 Brain Arena. An Open Source Project.</p>
+  </footer>
+
+  <script>
+    lucide.createIcons();
+    const startScreen = document.getElementById("startScreen");
+    const gamePlay = document.getElementById("gamePlay");
+    const gameGrid = document.getElementById("gameGrid");
+    const startBtn = document.getElementById("startBtn");
+    const levelDisplay = document.getElementById("levelDisplay");
+    const livesDisplay = document.getElementById("livesDisplay");
+    const statusText = document.getElementById("statusText");
+    const lastScoreEl = document.getElementById("lastScore");
+    const avgScoreEl = document.getElementById("avgScore");
+    const bestScoreEl = document.getElementById("bestScore");
+
+    let currentLevel = 1;
+    let lives = 3;
+    let gridSize = 3;
+    let pattern = [];
+    let userSelection = [];
+    let isInputEnabled = false;
+    window.scores = [];
+
+    window.updateScoreDisplay = () => {
+      if (window.scores.length > 0) {
+        lastScoreEl.textContent = `Level ${window.scores[window.scores.length - 1]}`;
+        avgScoreEl.textContent = `Level ${Math.round(window.scores.reduce((a, b) => a + b) / window.scores.length)}`;
+        bestScoreEl.textContent = `Level ${Math.max(...window.scores)}`;
+      }
+    };
+
+    function startRound() {
+      if (currentLevel % 3 === 0 && gridSize < 6) gridSize++;
+      gameGrid.style.gridTemplateColumns = `repeat(${gridSize}, minmax(0, 1fr))`;
+      gameGrid.innerHTML = "";
+      pattern = [];
+      userSelection = [];
+      levelDisplay.textContent = currentLevel;
+      livesDisplay.textContent = lives;
+      statusText.textContent = "Memorize!";
+      isInputEnabled = false;
+
+      for (let i = 0; i < gridSize * gridSize; i++) {
+        const tile = document.createElement("div");
+        tile.className = "visual-tile rounded bg-white/10";
+        tile.addEventListener("click", () => handleTileClick(i));
+        gameGrid.appendChild(tile);
+      }
+
+      const numSquares = currentLevel + 2;
+      while (pattern.length < numSquares) {
+        const r = Math.floor(Math.random() * (gridSize * gridSize));
+        if (!pattern.includes(r)) pattern.push(r);
+      }
+
+      // Small delay before showing pattern to ensure grid is rendered and visible
+      setTimeout(() => {
+        pattern.forEach(idx => {
+          gameGrid.children[idx].classList.remove("bg-white/10");
+          gameGrid.children[idx].classList.add("bg-white");
+        });
+
+        setTimeout(() => {
+          pattern.forEach(idx => {
+            gameGrid.children[idx].classList.remove("bg-white");
+            gameGrid.children[idx].classList.add("bg-white/10");
+          });
+          statusText.textContent = "Recall!";
+          isInputEnabled = true;
+        }, 1200);
+      }, 500);
+    }
+
+    function handleTileClick(idx) {
+      if (!isInputEnabled) return;
+      const tile = gameGrid.children[idx];
+      if (userSelection.includes(idx)) return;
+
+      if (pattern.includes(idx)) {
+        userSelection.push(idx);
+        tile.classList.remove("bg-white/10");
+        tile.classList.add("bg-white");
+        if (userSelection.length === pattern.length) {
+          isInputEnabled = false;
+          currentLevel++;
+          setTimeout(startRound, 500);
+        }
+      } else {
+        isInputEnabled = false;
+        tile.classList.remove("bg-white/10");
+        tile.classList.add("bg-coral");
+        lives--;
+        if (lives <= 0) endGame(); else setTimeout(startRound, 800);
+      }
+    }
+
+    function startGame() {
+      currentLevel = 1; lives = 3; gridSize = 3;
+      startScreen.classList.add("hidden");
+      gamePlay.classList.remove("hidden");
+      startRound();
+    }
+
+    function endGame() {
+      window.scores.push(currentLevel);
+      window.saveScores();
+      window.updateScoreDisplay();
+      startScreen.classList.remove("hidden");
+      gamePlay.classList.add("hidden");
+      document.querySelector("#startScreen h1").textContent = "Game Over!";
+      document.querySelector("#startScreen p").textContent = `Level reached: ${currentLevel}`;
+      startBtn.textContent = "Try Again";
+    }
+
+    startBtn.addEventListener("click", startGame);
+  </script>
+</body>
+</html>
