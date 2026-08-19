@@ -33,6 +33,42 @@
         document.documentElement.classList.remove('dark')
     }
   </script>
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+    import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyD-FpcaNwRLdZSWh5-CYzQkh6tu_ouWk7A",
+      authDomain: "brainarena-cfe76.firebaseapp.com",
+      databaseURL: "https://brainarena-cfe76-default-rtdb.firebaseio.com",
+      projectId: "brainarena-cfe76",
+      storageBucket: "brainarena-cfe76.firebasestorage.app",
+      messagingSenderId: "23262900711",
+      appId: "1:23262900711:web:fd6be7114c0cec8cd42"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+
+    const authStateElements = document.querySelectorAll('.auth-state');
+    const guestStateElements = document.querySelectorAll('.guest-state');
+    const userDisplayName = document.getElementById('user-display-name');
+
+    onAuthStateChanged(auth, (user) => {
+      if (user) {
+        authStateElements.forEach(el => el.classList.remove('hidden'));
+        guestStateElements.forEach(el => el.classList.add('hidden'));
+        if (userDisplayName) userDisplayName.textContent = user.displayName || user.email.split('@')[0];
+      } else {
+        authStateElements.forEach(el => el.classList.add('hidden'));
+        guestStateElements.forEach(el => el.classList.remove('hidden'));
+      }
+    });
+
+    window.logout = () => {
+      signOut(auth).then(() => window.location.reload());
+    };
+  </script>
   <style>
     body { font-family: 'Nunito', sans-serif; }
   </style>
@@ -59,8 +95,16 @@
         <i id="moon-icon" data-lucide="moon" class="w-5 h-5"></i>
         <i id="sun-icon" data-lucide="sun" class="w-5 h-5 hidden"></i>
       </button>
-      <a href="#" class="text-gray-500 dark:text-gray-400 font-bold text-[11px] uppercase tracking-wider hover:text-burgundy dark:hover:text-white">Sign In</a>
-      <a href="#" class="bg-coral text-white px-6 py-2 rounded-full font-bold text-xs">Get Started</a>
+
+      <div class="guest-state flex items-center gap-6">
+        <a href="login.html" class="text-gray-500 dark:text-gray-400 font-bold text-[11px] uppercase tracking-wider hover:text-burgundy dark:hover:text-white">Sign In</a>
+        <a href="signup.html" class="bg-coral text-white px-6 py-2 rounded-full font-bold text-xs">Get Started</a>
+      </div>
+
+      <div class="auth-state hidden flex items-center gap-4">
+        <span id="user-display-name" class="text-burgundy dark:text-white font-bold text-xs"></span>
+        <button onclick="logout()" class="text-gray-500 dark:text-gray-400 font-bold text-[11px] uppercase tracking-wider hover:text-burgundy dark:hover:text-white">Logout</button>
+      </div>
     </div>
   </header>
 
@@ -235,3 +279,4 @@
   </script>
 </body>
 </html>
+

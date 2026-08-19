@@ -33,6 +33,112 @@
         document.documentElement.classList.remove('dark')
     }
   </script>
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+    import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+    import { getDatabase, ref, query, orderByChild, limitToFirst, onValue } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyD-FpcaNwRLdZSWh5-CYzQkh6tu_ouWk7A",
+      authDomain: "brainarena-cfe76.firebaseapp.com",
+      databaseURL: "https://brainarena-cfe76-default-rtdb.firebaseio.com",
+      projectId: "brainarena-cfe76",
+      storageBucket: "brainarena-cfe76.firebasestorage.app",
+      messagingSenderId: "23262900711",
+      appId: "1:23262900711:web:fd6be7115114c0cec8cd42"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getDatabase(app);
+
+    const authStateElements = document.querySelectorAll('.auth-state');
+    const guestStateElements = document.querySelectorAll('.guest-state');
+    const userDisplayName = document.getElementById('user-display-name');
+
+    let currentUserId = null;
+
+    onAuthStateChanged(auth, (user) => {
+      if (user) {
+        currentUserId = user.uid;
+        authStateElements.forEach(el => el.classList.remove('hidden'));
+        guestStateElements.forEach(el => el.classList.add('hidden'));
+        if (userDisplayName) userDisplayName.textContent = user.displayName || user.email.split('@')[0];
+      } else {
+        currentUserId = null;
+        authStateElements.forEach(el => el.classList.add('hidden'));
+        guestStateElements.forEach(el => el.classList.remove('hidden'));
+      }
+      loadLeaderboard('reaction'); // Default load
+    });
+
+    window.logout = () => {
+      signOut(auth).then(() => window.location.reload());
+    };
+
+    const leaderboardBody = document.getElementById('leaderboard-body');
+    const gameTabs = document.querySelectorAll('.game-tab');
+
+    function loadLeaderboard(gameId) {
+      const isTimeBased = gameId === 'reaction' || gameId === 'aim';
+      const leaderboardRef = ref(db, `leaderboards/${gameId}`);
+      const leaderboardQuery = query(leaderboardRef, orderByChild('score'), limitToFirst(50));
+
+      onValue(leaderboardQuery, (snapshot) => {
+        const data = snapshot.val();
+        let players = [];
+        if (data) {
+          players = Object.values(data);
+          // Firebase sorts ascending by default. For memory games, we need descending.
+          if (!isTimeBased) {
+            players.sort((a, b) => b.score - a.score);
+          } else {
+            players.sort((a, b) => a.score - b.score);
+          }
+        }
+
+        renderTable(players, isTimeBased);
+      });
+    }
+
+    function renderTable(players, isTimeBased) {
+      leaderboardBody.innerHTML = '';
+
+      if (players.length === 0) {
+        leaderboardBody.innerHTML = `<tr><td colspan="3" class="px-6 py-12 text-center text-gray-500">No scores yet. Be the first!</td></tr>`;
+        return;
+      }
+
+      players.forEach((player, index) => {
+        const isMe = player.uid === currentUserId;
+        const row = document.createElement('tr');
+        row.className = `${isMe ? 'bg-coral/5 dark:bg-coral/10' : 'hover:bg-gray-50/50 dark:hover:bg-slate-800/50'} transition-colors`;
+
+        row.innerHTML = `
+          <td class="px-6 py-4">
+            <span class="w-6 h-6 ${index === 0 ? 'bg-sunny' : index === 1 ? 'bg-gray-300' : index === 2 ? 'bg-amber-600' : 'bg-gray-100 dark:bg-slate-800'} rounded-full flex items-center justify-center ${index < 3 ? 'text-white' : 'text-gray-400'} text-[10px] font-bold">
+              ${index + 1}
+            </span>
+          </td>
+          <td class="px-6 py-4 text-burgundy dark:text-white font-bold">
+            ${player.displayName} ${isMe ? '<span class="ml-2 text-[8px] bg-coral text-white px-1.5 py-0.5 rounded-full uppercase tracking-tighter">You</span>' : ''}
+          </td>
+          <td class="px-6 py-4 text-gray-600 dark:text-gray-400 font-medium">
+            ${player.score}${isTimeBased ? ' ms' : ''}
+          </td>
+        `;
+        leaderboardBody.appendChild(row);
+      });
+    }
+
+    gameTabs.forEach(tab => {
+      tab.addEventListener('click', () => {
+        gameTabs.forEach(t => t.classList.remove('border-burgundy', 'text-burgundy', 'dark:border-white', 'dark:text-white'));
+        tab.classList.add('border-burgundy', 'text-burgundy', 'dark:border-white', 'dark:text-white');
+        loadLeaderboard(tab.dataset.game);
+      });
+    });
+  </script>
   <style>
     body { font-family: 'Nunito', sans-serif; }
   </style>
@@ -59,15 +165,35 @@
         <i id="moon-icon" data-lucide="moon" class="w-5 h-5"></i>
         <i id="sun-icon" data-lucide="sun" class="w-5 h-5 hidden"></i>
       </button>
-      <a href="#" class="text-gray-500 dark:text-gray-400 font-bold text-[11px] uppercase tracking-wider hover:text-burgundy dark:hover:text-white">Sign In</a>
-      <a href="#" class="bg-coral text-white px-6 py-2 rounded-full font-bold text-xs">Get Started</a>
+
+      <div class="guest-state flex items-center gap-6">
+        <a href="login.html" class="text-gray-500 dark:text-gray-400 font-bold text-[11px] uppercase tracking-wider hover:text-burgundy dark:hover:text-white">Sign In</a>
+        <a href="signup.html" class="bg-coral text-white px-6 py-2 rounded-full font-bold text-xs">Get Started</a>
+      </div>
+
+      <div class="auth-state hidden flex items-center gap-4">
+        <span id="user-display-name" class="text-burgundy dark:text-white font-bold text-xs"></span>
+        <button onclick="logout()" class="text-gray-500 dark:text-gray-400 font-bold text-[11px] uppercase tracking-wider hover:text-burgundy dark:hover:text-white">Logout</button>
+      </div>
     </div>
   </header>
 
   <main class="flex-1 max-w-5xl mx-auto w-full px-6 py-12">
-    <div class="mb-10 space-y-2">
-      <h1 class="text-3xl font-bold text-burgundy dark:text-white">Global Leaderboards</h1>
-      <p class="text-gray-500 dark:text-gray-400 text-sm">Compete with the world's sharpest minds.</p>
+    <div class="mb-10 space-y-6">
+      <div class="space-y-2">
+        <h1 class="text-3xl font-bold text-burgundy dark:text-white">Global Leaderboards</h1>
+        <p class="text-gray-500 dark:text-gray-400 text-sm">Compete with the world's sharpest minds.</p>
+      </div>
+
+      <!-- Game Selector Tabs -->
+      <div class="flex flex-wrap gap-4 border-b border-gray-100 dark:border-slate-800">
+        <button data-game="reaction" class="game-tab pb-4 text-[10px] font-bold uppercase tracking-widest border-b-2 border-burgundy text-burgundy dark:border-white dark:text-white transition-all">Reaction</button>
+        <button data-game="aim" class="game-tab pb-4 text-[10px] font-bold uppercase tracking-widest border-b-2 border-transparent text-gray-400 hover:text-burgundy dark:hover:text-white transition-all">Aim</button>
+        <button data-game="chimp" class="game-tab pb-4 text-[10px] font-bold uppercase tracking-widest border-b-2 border-transparent text-gray-400 hover:text-burgundy dark:hover:text-white transition-all">Chimp</button>
+        <button data-game="sequence" class="game-tab pb-4 text-[10px] font-bold uppercase tracking-widest border-b-2 border-transparent text-gray-400 hover:text-burgundy dark:hover:text-white transition-all">Sequence</button>
+        <button data-game="verbal" class="game-tab pb-4 text-[10px] font-bold uppercase tracking-widest border-b-2 border-transparent text-gray-400 hover:text-burgundy dark:hover:text-white transition-all">Verbal</button>
+        <button data-game="visual" class="game-tab pb-4 text-[10px] font-bold uppercase tracking-widest border-b-2 border-transparent text-gray-400 hover:text-burgundy dark:hover:text-white transition-all">Visual</button>
+      </div>
     </div>
 
     <div class="bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-800 rounded-2xl overflow-hidden transition-colors">
@@ -76,39 +202,13 @@
           <tr>
             <th class="px-6 py-4">Rank</th>
             <th class="px-6 py-4">Player</th>
-            <th class="px-6 py-4">Score</th>
-            <th class="px-6 py-4">Reaction</th>
-            <th class="px-6 py-4">Accuracy</th>
+            <th class="px-6 py-4">Best Score / Level</th>
           </tr>
         </thead>
-        <tbody class="divide-y divide-gray-50 dark:divide-slate-800 text-sm font-medium">
-          <tr class="hover:bg-gray-50/50 dark:hover:bg-slate-800/50 transition-colors">
-            <td class="px-6 py-4"><span class="w-6 h-6 bg-sunny rounded-full flex items-center justify-center text-white text-[10px]">1</span></td>
-            <td class="px-6 py-4 text-burgundy dark:text-white">Alex Rivera</td>
-            <td class="px-6 py-4 text-gray-600 dark:text-gray-400">2,984</td>
-            <td class="px-6 py-4 text-gray-600 dark:text-gray-400">142ms</td>
-            <td class="px-6 py-4 text-gray-600 dark:text-gray-400">99.8%</td>
-          </tr>
-          <tr class="hover:bg-gray-50/50 dark:hover:bg-slate-800/50 transition-colors">
-            <td class="px-6 py-4"><span class="w-6 h-6 bg-gray-100 dark:bg-slate-800 rounded-full flex items-center justify-center text-gray-400 dark:text-gray-500 text-[10px]">2</span></td>
-            <td class="px-6 py-4 text-burgundy dark:text-white">Jordan Smith</td>
-            <td class="px-6 py-4 text-gray-600 dark:text-gray-400">2,810</td>
-            <td class="px-6 py-4 text-gray-600 dark:text-gray-400">156ms</td>
-            <td class="px-6 py-4 text-gray-600 dark:text-gray-400">97.5%</td>
-          </tr>
-          <tr class="hover:bg-gray-50/50 dark:hover:bg-slate-800/50 transition-colors">
-            <td class="px-6 py-4"><span class="w-6 h-6 bg-gray-100 dark:bg-slate-800 rounded-full flex items-center justify-center text-gray-400 dark:text-gray-500 text-[10px]">3</span></td>
-            <td class="px-6 py-4 text-burgundy dark:text-white">Elena Vance</td>
-            <td class="px-6 py-4 text-gray-600 dark:text-gray-400">2,745</td>
-            <td class="px-6 py-4 text-gray-600 dark:text-gray-400">164ms</td>
-            <td class="px-6 py-4 text-gray-600 dark:text-gray-400">98.2%</td>
-          </tr>
-          <tr class="bg-coral/5 dark:bg-coral/10 hover:bg-coral/10 dark:hover:bg-coral/20 transition-colors">
-            <td class="px-6 py-4"><span class="w-6 h-6 bg-coral rounded-full flex items-center justify-center text-white text-[10px]">124</span></td>
-            <td class="px-6 py-4 text-burgundy dark:text-white font-bold">You</td>
-            <td class="px-6 py-4 text-gray-600 dark:text-gray-400">1,450</td>
-            <td class="px-6 py-4 text-gray-600 dark:text-gray-400">210ms</td>
-            <td class="px-6 py-4 text-gray-600 dark:text-gray-400">91.4%</td>
+        <tbody id="leaderboard-body" class="divide-y divide-gray-50 dark:divide-slate-800 text-sm font-medium">
+          <!-- Real data will be injected here -->
+          <tr>
+            <td colspan="3" class="px-6 py-12 text-center text-gray-500">Loading rankings...</td>
           </tr>
         </tbody>
       </table>
@@ -150,3 +250,4 @@
   </script>
 </body>
 </html>
+
