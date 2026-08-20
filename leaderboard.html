@@ -133,7 +133,11 @@
 
     gameTabs.forEach(tab => {
       tab.addEventListener('click', () => {
-        gameTabs.forEach(t => t.classList.remove('border-burgundy', 'text-burgundy', 'dark:border-white', 'dark:text-white'));
+        gameTabs.forEach(t => {
+          t.classList.remove('border-burgundy', 'text-burgundy', 'dark:border-white', 'dark:text-white');
+          t.classList.add('border-transparent', 'text-gray-400');
+        });
+        tab.classList.remove('border-transparent', 'text-gray-400');
         tab.classList.add('border-burgundy', 'text-burgundy', 'dark:border-white', 'dark:text-white');
         loadLeaderboard(tab.dataset.game);
       });
